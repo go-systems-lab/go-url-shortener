@@ -166,9 +166,9 @@ make demo-swagger
 Our REST API includes **comprehensive OpenAPI 3.0 documentation** with interactive testing capabilities.
 
 #### **📱 Access Points**
-- **🔗 Swagger UI**: `http://localhost:8082/docs/index.html`
-- **📄 OpenAPI Spec**: `http://localhost:8082/docs/doc.json`
-- **🏠 Landing Page**: `http://localhost:8082/`
+- **🔗 Swagger UI**: `http://localhost:8080/docs/index.html`
+- **📄 OpenAPI Spec**: `http://localhost:8080/docs/doc.json`
+- **🏠 Landing Page**: `http://localhost:8080/`
 
 #### **🎯 Core Endpoints**
 
