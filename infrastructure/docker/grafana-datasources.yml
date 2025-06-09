@@ -1,0 +1,82 @@
+# =============================================================================
+# Grafana Datasources Configuration - URL Shortener Observability Stack
+# =============================================================================
+# This file configures the data sources for Grafana dashboards:
+# - Prometheus: Primary metrics source
+# - Jaeger: Distributed tracing source
+# =============================================================================
+
+apiVersion: 1
+
+# =============================================================================
+# DATASOURCES
+# =============================================================================
+datasources:
+  # ---------------------------------------------------------------------------
+  # PROMETHEUS - Primary Metrics Source
+  # ---------------------------------------------------------------------------
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://url-shortener-prometheus:9090
+    isDefault: true
+    editable: false
+    basicAuth: false
+    withCredentials: false
+    jsonData:
+      timeInterval: "15s"
+      queryTimeout: "60s"
+      defaultRegion: "default"
+      customQueryParameters: ""
+      httpMethod: "POST"
+      prometheusType: "Prometheus"
+      prometheusVersion: "2.47.2"
+      exemplarTraceIdDestinations:
+        - name: "trace_id"
+          datasourceUid: "jaeger-uid"
+
+  # ---------------------------------------------------------------------------
+  # JAEGER - Distributed Tracing Source  
+  # ---------------------------------------------------------------------------
+  - name: Jaeger
+    type: jaeger
+    uid: jaeger-uid
+    access: proxy
+    url: http://url-shortener-jaeger:16686
+    isDefault: false
+    editable: false
+    basicAuth: false
+    withCredentials: false
+    jsonData:
+      tracesToLogs:
+        datasourceUid: "prometheus-uid"
+        tags: ['job', 'instance', 'pod', 'namespace']
+        mappedTags: [{ key: 'service.name', value: 'service' }]
+        mapTagNamesEnabled: false
+        spanStartTimeShift: '1h'
+        spanEndTimeShift: '1h'
+      nodeGraph:
+        enabled: true
+      search:
+        hide: false
+      spanBar:
+        type: 'Tag'
+        tag: 'http.status_code'
+
+  # ClickHouse - Analytics data source (if needed for custom dashboards)
+  - name: ClickHouse
+    type: grafana-clickhouse-datasource
+    access: proxy
+    url: http://clickhouse:8123
+    editable: true
+    jsonData:
+      defaultDatabase: analytics
+      port: 8123
+      server: clickhouse
+      username: default
+      tlsSkipVerify: false
+      useYandexCloudAuthorization: false
+      xHeaderUser: ''
+      xHeaderKey: ''
+    secureJsonData:
+      password: '' 

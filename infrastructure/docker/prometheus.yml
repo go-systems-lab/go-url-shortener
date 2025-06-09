@@ -1,0 +1,67 @@
+# =============================================================================
+# Prometheus Configuration - URL Shortener Observability Stack (FIXED)
+# =============================================================================
+# This configuration defines metrics collection for the URL Shortener system:
+# - Application Services: REST API, RPC services  
+# - Self-monitoring: Prometheus internal metrics
+# =============================================================================
+
+global:
+  scrape_interval: 15s          # How frequently to scrape targets
+  evaluation_interval: 15s      # How frequently to evaluate rules
+  external_labels:
+    cluster: 'url-shortener-dev'
+    environment: 'development'
+
+# =============================================================================
+# ALERTING RULES
+# =============================================================================
+rule_files:
+  - "/etc/prometheus/prometheus-rules.yml"
+
+# =============================================================================
+# SCRAPE CONFIGURATIONS (FIXED)
+# =============================================================================
+scrape_configs:
+
+  # ---------------------------------------------------------------------------
+  # APPLICATION SERVICES (Docker Containers)
+  # ---------------------------------------------------------------------------
+  - job_name: 'url-shortener-services'
+    static_configs:
+      - targets:
+        - 'host.docker.internal:8080'  # ✅ FIXED: REST API Service (correct port)
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+    scrape_timeout: 5s
+    honor_labels: false
+    metric_relabel_configs:
+      # Add service label for identification FIRST
+      - target_label: service
+        replacement: 'rest-api'
+      # Keep Go runtime metrics AND HTTP metrics
+      - source_labels: [__name__]
+        regex: '(go_(memstats_.*|gc_duration_seconds.*|goroutines|threads|sched_gomaxprocs_threads)|http_(requests_total|request_duration_seconds.*)|up|scrape_.*|process_.*)'
+        action: keep
+
+  # ---------------------------------------------------------------------------
+  # PROMETHEUS SELF-MONITORING
+  # ---------------------------------------------------------------------------
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+    metric_relabel_configs:
+      # Keep essential Prometheus internal metrics
+      - source_labels: [__name__]
+        regex: 'prometheus_(up|tsdb_.*|rule_.*|config_.*)'
+        action: keep
+
+# =============================================================================
+# ALERTING CONFIGURATION
+# =============================================================================
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []  # No alertmanager in development environment 

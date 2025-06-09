@@ -1,0 +1,153 @@
+syntax = "proto3";
+
+package analytics;
+
+option go_package = "github.com/go-systems-lab/go-url-shortener/proto/analytics";
+
+// Analytics service for URL click tracking and metrics
+service AnalyticsService {
+    // Process click event (async from NATS)
+    rpc ProcessClick(ClickEvent) returns (ProcessResponse);
+    
+    // Get URL statistics
+    rpc GetURLStats(StatsRequest) returns (StatsResponse);
+    
+    // Get top URLs
+    rpc GetTopURLs(TopURLsRequest) returns (TopURLsResponse);
+    
+    // Get analytics dashboard data
+    rpc GetDashboard(DashboardRequest) returns (DashboardResponse);
+    
+    // Health check
+    rpc Health(HealthRequest) returns (HealthResponse);
+}
+
+// Click event for processing
+message ClickEvent {
+    string short_code = 1;
+    string long_url = 2;
+    string client_ip = 3;
+    string user_agent = 4;
+    string referrer = 5;
+    string country = 6;
+    string city = 7;
+    string device_type = 8;
+    string browser = 9;
+    string os = 10;
+    int64 timestamp = 11;
+    string session_id = 12;
+    bool is_unique = 13;
+}
+
+// Response for click processing
+message ProcessResponse {
+    bool success = 1;
+    string error = 2;
+}
+
+// Request for URL statistics
+message StatsRequest {
+    string short_code = 1;
+    int64 start_time = 2;
+    int64 end_time = 3;
+    string granularity = 4; // hour, day, week, month
+}
+
+// URL statistics response
+message StatsResponse {
+    string short_code = 1;
+    int64 total_clicks = 2;
+    int64 unique_clicks = 3;
+    repeated TimeSeriesPoint time_series = 4;
+    repeated CountryStats country_stats = 5;
+    repeated DeviceStats device_stats = 6;
+    repeated BrowserStats browser_stats = 7;
+    repeated ReferrerStats referrer_stats = 8;
+}
+
+// Time series data point
+message TimeSeriesPoint {
+    int64 timestamp = 1;
+    int64 clicks = 2;
+    int64 unique_clicks = 3;
+}
+
+// Country statistics
+message CountryStats {
+    string country = 1;
+    int64 clicks = 2;
+    float percentage = 3;
+}
+
+// Device statistics
+message DeviceStats {
+    string device_type = 1;
+    int64 clicks = 2;
+    float percentage = 3;
+}
+
+// Browser statistics
+message BrowserStats {
+    string browser = 1;
+    int64 clicks = 2;
+    float percentage = 3;
+}
+
+// Referrer statistics
+message ReferrerStats {
+    string referrer = 1;
+    int64 clicks = 2;
+    float percentage = 3;
+}
+
+// Request for top URLs
+message TopURLsRequest {
+    int32 limit = 1;
+    int64 start_time = 2;
+    int64 end_time = 3;
+    string sort_by = 4; // clicks, unique_clicks, created_at
+}
+
+// Top URLs response
+message TopURLsResponse {
+    repeated URLMetrics urls = 1;
+}
+
+// URL metrics
+message URLMetrics {
+    string short_code = 1;
+    string long_url = 2;
+    int64 total_clicks = 3;
+    int64 unique_clicks = 4;
+    int64 created_at = 5;
+    int64 last_clicked = 6;
+}
+
+// Request for dashboard data
+message DashboardRequest {
+    int64 start_time = 1;
+    int64 end_time = 2;
+}
+
+// Dashboard response
+message DashboardResponse {
+    int64 totalUrls = 1;
+    int64 totalClicks = 2;
+    int64 uniqueClicks = 3;
+    int64 activeUrls = 4;
+    repeated TimeSeriesPoint clickTimeline = 5;
+    repeated URLMetrics topUrls = 6;
+    repeated CountryStats topCountries = 7;
+    repeated DeviceStats deviceBreakdown = 8;
+}
+
+// Health check request
+message HealthRequest {}
+
+// Health check response
+message HealthResponse {
+    string status = 1;
+    string service = 2;
+    string version = 3;
+    int64 timestamp = 4;
+} 

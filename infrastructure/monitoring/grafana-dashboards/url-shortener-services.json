@@ -1,0 +1,656 @@
+{
+  "id": null,
+  "uid": "url-shortener-services",
+  "title": "URL Shortener - Application Services",
+  "description": "🎯 **Engineering & Business Observability Dashboard**\n\nComprehensive monitoring for URL Shortener microservices including SLI/SLO tracking, performance analysis, business metrics, and operational insights.\n\n📊 **Dashboard Sections:**\n- 🚨 SLI/SLO Health & Alerts\n- 📈 Performance & Throughput Analysis  \n- 🎯 Business KPIs & User Engagement\n- 🔧 Runtime & Resource Monitoring\n- 🐛 Error Analysis & Debugging",
+  "tags": ["url-shortener", "services", "sli-slo", "business-metrics", "engineering", "production"],
+  "style": "dark",
+  "timezone": "browser",
+  "refresh": "15s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "🚨 SLI/SLO Health & Service Status",
+      "type": "row",
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 0},
+      "collapsed": false
+    },
+    {
+      "id": 2,
+      "title": "🟢 Service Availability",
+      "description": "**SLI Target: 99.9% uptime**\nService health status from Prometheus monitoring",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "up{job=\"url-shortener-services\"}",
+          "legendFormat": "REST API Service",
+          "refId": "A"
+        }
+      ],
+      "gridPos": {"h": 4, "w": 4, "x": 0, "y": 1},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "custom": {
+            "displayMode": "basic",
+            "orientation": "auto"
+          },
+          "mappings": [
+            {"options": {"0": {"text": "🔴 DOWN", "color": "red"}}, "type": "value"},
+            {"options": {"1": {"text": "🟢 UP", "color": "green"}}, "type": "value"}
+          ],
+          "thresholds": {
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "green", "value": 1}
+            ]
+          },
+          "unit": "short",
+          "min": 0,
+          "max": 1
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "⚡ Request Throughput",
+      "description": "**SLI Target: Handle 1000+ RPS**\nTotal requests per second across all endpoints",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total{service=\"rest-api\"}[5m]))",
+          "legendFormat": "Current RPS",
+          "refId": "A"
+        }
+      ],
+      "gridPos": {"h": 4, "w": 5, "x": 4, "y": 1},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "unit": "reqps",
+          "decimals": 2,
+          "thresholds": {
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "yellow", "value": 0.1},
+              {"color": "green", "value": 1}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "🎯 Response Time SLI",
+      "description": "**SLI Target: P95 < 200ms**\nResponse latency percentiles for performance monitoring",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{service=\"rest-api\"}[5m])) * 1000",
+          "legendFormat": "P95 Latency (ms)",
+          "refId": "A"
+        }
+      ],
+      "gridPos": {"h": 4, "w": 5, "x": 9, "y": 1},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "unit": "ms",
+          "decimals": 1,
+          "thresholds": {
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 200},
+              {"color": "red", "value": 500}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "🛡️ Error Rate SLI", 
+      "description": "**SLI Target: < 1% error rate**\nPercentage of requests resulting in 4xx/5xx errors",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "100 * sum(rate(http_requests_total{service=\"rest-api\", status=~\"4..|5..\"}[5m])) / sum(rate(http_requests_total{service=\"rest-api\"}[5m]))",
+          "legendFormat": "Error Rate %",
+          "refId": "A"
+        }
+      ],
+      "gridPos": {"h": 4, "w": 5, "x": 14, "y": 1},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "unit": "percent",
+          "decimals": 2,
+          "thresholds": {
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 1},
+              {"color": "red", "value": 5}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 6,
+      "title": "📊 SLO Compliance",
+      "description": "**Overall SLO Score**\nCombined health score based on availability, latency, and error rate",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "(\n  (up{job=\"url-shortener-services\"} * 100) +\n  (100 - (100 * sum(rate(http_requests_total{service=\"rest-api\", status=~\"4..|5..\"}[5m])) / sum(rate(http_requests_total{service=\"rest-api\"}[5m])))) +\n  (100 - clamp_max((histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{service=\"rest-api\"}[5m])) * 1000) / 2, 100))\n) / 3",
+          "legendFormat": "SLO Score",
+          "refId": "A"
+        }
+      ],
+      "gridPos": {"h": 4, "w": 5, "x": 19, "y": 1},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "unit": "percent",
+          "decimals": 1,
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "yellow", "value": 95},
+              {"color": "green", "value": 99}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 7,
+      "title": "📈 Performance & Throughput Analysis",
+      "type": "row", 
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 5},
+      "collapsed": false
+    },
+    {
+      "id": 8,
+      "title": "🚀 Request Rate by Business Function",
+      "description": "Traffic distribution across core business operations",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "rate(http_requests_total{service=\"rest-api\", endpoint=\"/api/v1/shorten\"}[5m])",
+          "legendFormat": "🔗 URL Creation (Core Business)",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(http_requests_total{service=\"rest-api\", endpoint=~\".*:shortCode\", method=~\"GET|DELETE\"}[5m])",
+          "legendFormat": "🔄 URL Management (CRUD Ops)",
+          "refId": "B"
+        },
+        {
+          "expr": "rate(http_requests_total{service=\"rest-api\", endpoint=~\"/api/v1/analytics.*\"}[5m])",
+          "legendFormat": "📊 Analytics (Business Intelligence)",
+          "refId": "C"
+        },
+        {
+          "expr": "rate(http_requests_total{service=\"rest-api\", endpoint=~\"/:.*\", method=\"GET\"}[5m])",
+          "legendFormat": "↗️ Redirects (User Experience)",
+          "refId": "D"
+        },
+        {
+          "expr": "rate(http_requests_total{service=\"rest-api\", endpoint=\"/health\"}[5m])",
+          "legendFormat": "❤️ Health Checks (Monitoring)",
+          "refId": "E"
+        }
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 6},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "unit": "reqps",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10
+          }
+        }
+      }
+    },
+    {
+      "id": 9,
+      "title": "⏱️ Response Time Distribution",
+      "description": "Latency percentiles for performance SLI tracking",
+      "type": "timeseries", 
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, rate(http_request_duration_seconds_bucket{service=\"rest-api\"}[5m])) * 1000",
+          "legendFormat": "P50 (Median)",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.90, rate(http_request_duration_seconds_bucket{service=\"rest-api\"}[5m])) * 1000",
+          "legendFormat": "P90",
+          "refId": "B"
+        },
+        {
+          "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{service=\"rest-api\"}[5m])) * 1000",
+          "legendFormat": "P95 (SLI Target)",
+          "refId": "C"
+        },
+        {
+          "expr": "histogram_quantile(0.99, rate(http_request_duration_seconds_bucket{service=\"rest-api\"}[5m])) * 1000",
+          "legendFormat": "P99 (Tail Latency)",
+          "refId": "D"
+        }
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 6},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "unit": "ms",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth"
+          }
+        }
+      }
+    },
+    {
+      "id": 10,
+      "title": "🚦 HTTP Status Code Analysis",
+      "description": "Request success/failure patterns for error analysis", 
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "rate(http_requests_total{service=\"rest-api\", status=~\"2..\"}[5m])",
+          "legendFormat": "✅ 2xx Success",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(http_requests_total{service=\"rest-api\", status=~\"3..\"}[5m])",
+          "legendFormat": "↗️ 3xx Redirects", 
+          "refId": "B"
+        },
+        {
+          "expr": "rate(http_requests_total{service=\"rest-api\", status=~\"4..\"}[5m])",
+          "legendFormat": "❌ 4xx Client Errors",
+          "refId": "C"
+        },
+        {
+          "expr": "rate(http_requests_total{service=\"rest-api\", status=~\"5..\"}[5m])",
+          "legendFormat": "🚨 5xx Server Errors", 
+          "refId": "D"
+        }
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 14},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "unit": "reqps",
+          "custom": {
+            "fillOpacity": 15
+          }
+        }
+      }
+    },
+    {
+      "id": 11,
+      "title": "📋 Status Distribution Overview",
+      "description": "Proportional view of response status codes",
+      "type": "piechart",
+      "targets": [
+        {
+          "expr": "sum by (status) (rate(http_requests_total{service=\"rest-api\"}[5m]))",
+          "legendFormat": "{{status}}",
+          "refId": "A"
+        }
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 14},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "hideFrom": {
+              "tooltip": false,
+              "legend": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": 12,
+      "title": "🎯 Business KPIs & User Engagement",
+      "type": "row",
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 22},
+      "collapsed": false
+    },
+    {
+      "id": 13,
+      "title": "📈 URL Creation Rate",
+      "description": "**Key Business Metric**\nSuccessful URL shortenings per minute (revenue driver)",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "http_requests_total{service=\"rest-api\", endpoint=\"/api/v1/shorten\", status=~\"2..\"}",
+          "legendFormat": "✅ Successful Creations",
+          "refId": "A"
+        },
+        {
+          "expr": "http_requests_total{service=\"rest-api\", endpoint=\"/api/v1/shorten\", status=~\"4..|5..\"}",
+          "legendFormat": "❌ Failed Attempts", 
+          "refId": "B"
+        }
+      ],
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 23},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "unit": "reqps",
+          "custom": {
+            "fillOpacity": 10
+          }
+        }
+      }
+    },
+    {
+      "id": 14,
+      "title": "🔄 User Engagement Rate",
+      "description": "**User Activity Metric**\nURL clicks and management operations (user retention)",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "http_requests_total{service=\"rest-api\", endpoint=\"/:shortCode\", method=\"GET\", status=~\"2..|3..\"}",
+          "legendFormat": "🎯 Successful Redirects",
+          "refId": "A"
+        },
+        {
+          "expr": "http_requests_total{service=\"rest-api\", endpoint=\"/api/v1/urls/:shortCode\", method=\"GET\", status=~\"2..\"}",
+          "legendFormat": "📋 URL Info Requests",
+          "refId": "B"
+        },
+        {
+          "expr": "http_requests_total{service=\"rest-api\", endpoint=\"/api/v1/users/:userID/urls\", status=~\"2..\"}",
+          "legendFormat": "👤 User URL Lists",
+          "refId": "C"
+        }
+      ],
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 23},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "unit": "reqps"
+        }
+      }
+    },
+    {
+      "id": 15,
+      "title": "📊 Analytics Consumption",
+      "description": "**Business Intelligence Usage**\nDashboard and analytics API consumption patterns",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "http_requests_total{service=\"rest-api\", endpoint=\"/api/v1/analytics/dashboard\", status=~\"2..\"}",
+          "legendFormat": "📈 Dashboard Views",
+          "refId": "A"
+        },
+        {
+          "expr": "http_requests_total{service=\"rest-api\", endpoint=\"/api/v1/analytics/top-urls\", status=~\"2..\"}",
+          "legendFormat": "🏆 Top URLs Queries",
+          "refId": "B"
+        },
+        {
+          "expr": "http_requests_total{service=\"rest-api\", endpoint=\"/api/v1/analytics/urls/:shortCode\", status=~\"2..\"}",
+          "legendFormat": "📋 URL Stats Queries",
+          "refId": "C"
+        }
+      ],
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 23},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "unit": "reqps"
+        }
+      }
+    },
+    {
+      "id": 16,
+      "title": "🔧 Runtime & Resource Monitoring",
+      "type": "row",
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 31},
+      "collapsed": false
+    },
+    {
+      "id": 17,
+      "title": "🧠 Memory Usage Profile",
+      "description": "Go runtime memory allocation and usage patterns",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "go_memstats_alloc_bytes{job=\"url-shortener-services\"} / 1024 / 1024",
+          "legendFormat": "💾 Allocated Memory (MB)",
+          "refId": "A"
+        },
+        {
+          "expr": "go_memstats_heap_inuse_bytes{job=\"url-shortener-services\"} / 1024 / 1024",
+          "legendFormat": "🏠 Heap In Use (MB)",
+          "refId": "B"
+        },
+        {
+          "expr": "go_memstats_stack_inuse_bytes{job=\"url-shortener-services\"} / 1024 / 1024", 
+          "legendFormat": "📚 Stack In Use (MB)",
+          "refId": "C"
+        },
+        {
+          "expr": "go_memstats_sys_bytes{job=\"url-shortener-services\"} / 1024 / 1024",
+          "legendFormat": "🖥️ System Memory (MB)",
+          "refId": "D"
+        }
+      ],
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 32},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "unit": "short"
+        }
+      }
+    },
+    {
+      "id": 18,
+      "title": "⚡ Goroutine & Thread Management",
+      "description": "Go concurrency and threading metrics",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "go_goroutines{job=\"url-shortener-services\"}",
+          "legendFormat": "🔄 Active Goroutines",
+          "refId": "A"
+        },
+        {
+          "expr": "go_threads{job=\"url-shortener-services\"}",
+          "legendFormat": "🧵 OS Threads",
+          "refId": "B"
+        },
+        {
+          "expr": "go_sched_gomaxprocs_threads{job=\"url-shortener-services\"}",
+          "legendFormat": "⚙️ GOMAXPROCS",
+          "refId": "C"
+        }
+      ],
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 32},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "unit": "short"
+        }
+      }
+    },
+    {
+      "id": 19,
+      "title": "🗑️ Garbage Collection Performance",
+      "description": "GC frequency, duration, and efficiency metrics",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "rate(go_gc_duration_seconds_count{job=\"url-shortener-services\"}[5m])",
+          "legendFormat": "🔄 GC Frequency (ops/sec)",
+          "refId": "A"
+        },
+        {
+          "expr": "go_gc_duration_seconds{job=\"url-shortener-services\", quantile=\"0.5\"} * 1000",
+          "legendFormat": "⏱️ GC Duration P50 (ms)",
+          "refId": "B"
+        },
+        {
+          "expr": "go_gc_duration_seconds{job=\"url-shortener-services\", quantile=\"0.95\"} * 1000",
+          "legendFormat": "⏱️ GC Duration P95 (ms)",
+          "refId": "C"
+        }
+      ],
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 32},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "unit": "short"
+        }
+      }
+    },
+    {
+      "id": 20,
+      "title": "🐛 Error Analysis & Debugging",
+      "type": "row",
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 40},
+      "collapsed": false
+    },
+    {
+      "id": 21,
+      "title": "🚨 Error Rate by Endpoint",
+      "description": "Endpoint-specific error analysis for targeted debugging",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "rate(http_requests_total{service=\"rest-api\", endpoint=\"/api/v1/shorten\", status=~\"4..|5..\"}[5m])",
+          "legendFormat": "🔗 URL Creation Errors",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(http_requests_total{service=\"rest-api\", endpoint=~\"/api/v1/urls/.*\", status=~\"4..|5..\"}[5m])",
+          "legendFormat": "📋 URL Management Errors",
+          "refId": "B"
+        },
+        {
+          "expr": "rate(http_requests_total{service=\"rest-api\", endpoint=~\"/api/v1/analytics.*\", status=~\"4..|5..\"}[5m])",
+          "legendFormat": "📊 Analytics Errors",
+          "refId": "C"
+        },
+        {
+          "expr": "rate(http_requests_total{service=\"rest-api\", endpoint=~\"/:.*\", status=~\"4..|5..\"}[5m])",
+          "legendFormat": "↗️ Redirect Errors",
+          "refId": "D"
+        }
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 41},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "unit": "reqps"
+        }
+      }
+    },
+    {
+      "id": 22,
+      "title": "⏰ Response Time by Status Code",
+      "description": "Latency correlation with success/failure patterns",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{service=\"rest-api\", status=~\"2..\"}[5m])) by (le)) * 1000",
+          "legendFormat": "✅ Success (2xx) P95",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{service=\"rest-api\", status=~\"4..\"}[5m])) by (le)) * 1000",
+          "legendFormat": "❌ Client Error (4xx) P95",
+          "refId": "B"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{service=\"rest-api\", status=~\"5..\"}[5m])) by (le)) * 1000",
+          "legendFormat": "🚨 Server Error (5xx) P95",
+          "refId": "C"
+        }
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 41},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "unit": "ms"
+        }
+      }
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "selected": false,
+          "text": "5m",
+          "value": "5m"
+        },
+        "hide": 0,
+        "includeAll": false,
+        "label": "Rate Interval",
+        "multi": false,
+        "name": "rate_interval",
+        "options": [
+          {"selected": false, "text": "1m", "value": "1m"},
+          {"selected": true, "text": "5m", "value": "5m"},
+          {"selected": false, "text": "10m", "value": "10m"},
+          {"selected": false, "text": "15m", "value": "15m"}
+        ],
+        "query": "1m,5m,10m,15m",
+        "queryValue": "",
+        "skipUrlSync": false,
+        "type": "custom"
+      }
+    ]
+  },
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "schemaVersion": 27,
+  "version": 2,
+  "links": [
+    {
+      "title": "🏗️ Infrastructure Dashboard",
+      "url": "/d/infrastructure-monitoring-url-shortener/infrastructure-monitoring-url-shortener",
+      "type": "link",
+      "tags": ["infrastructure"]
+    },
+    {
+      "title": "📚 Runbook & Documentation",
+      "url": "https://github.com/go-systems-lab/go-url-shortener",
+      "type": "link",
+      "targetBlank": true
+    },
+    {
+      "title": "🚨 Alert Manager",
+      "url": "/alerting/list",
+      "type": "link"
+    }
+  ]
+} 

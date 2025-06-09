@@ -1,0 +1,326 @@
+version: '3.8'
+
+services:
+  # =============================================================================
+  # INFRASTRUCTURE SERVICES
+  # =============================================================================
+  
+  # Database services
+  postgres:
+    image: postgres:15-alpine
+    container_name: url-shortener-postgres
+    environment:
+      POSTGRES_DB: url_shortener
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - url-shortener-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d url_shortener"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # PostgreSQL Migrations (URL Shortener + Redirect Services Only)
+  url-shortener-migrate:
+    image: migrate/migrate
+    container_name: url-shortener-migrate
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./database/migrations/url-shortener-svc:/migrations
+    networks:
+      - url-shortener-network
+    command: ["-path", "/migrations/", "-database", "postgres://postgres:password@postgres:5432/url_shortener?sslmode=disable", "up"]
+    restart: "no"
+
+  redis:
+    image: redis:7-alpine
+    container_name: url-shortener-redis
+    command: redis-server /usr/local/etc/redis/redis.conf --requirepass ${REDIS_PASSWORD:-redispassword}
+    volumes:
+      - redis_data:/data
+      - ./infrastructure/docker/redis.conf:/usr/local/etc/redis/redis.conf
+    ports:
+      - "6379:6379"
+    networks:
+      - url-shortener-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redispassword}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest
+    container_name: url-shortener-clickhouse
+    environment:
+      CLICKHOUSE_DB: analytics
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+      CLICKHOUSE_PASSWORD: ""
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+      - ./infrastructure/docker/clickhouse-users.xml:/etc/clickhouse-server/users.d/custom-users.xml
+    ports:
+      - "8123:8123"
+      - "9001:9000"
+    networks:
+      - url-shortener-network
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--host", "localhost", "--query", "SELECT 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ClickHouse Migrations (Analytics Service Only)
+  analytics-clickhouse-migrate:
+    image: curlimages/curl:latest
+    container_name: analytics-clickhouse-migrate
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    volumes:
+      - ./database/migrations/clickhouse/analytics-svc:/migrations
+    networks:
+      - url-shortener-network
+    command: >
+      sh -c "
+        echo 'Running ClickHouse Analytics migrations...' &&
+        curl -X POST 'http://clickhouse:8123/' --data-binary @/migrations/000001_initial_schema.sql &&
+        echo 'ClickHouse Analytics migrations completed!'
+      "
+    restart: "no"
+
+  # Message Queue
+  nats:
+    image: nats:2.10-alpine
+    container_name: url-shortener-nats
+    command: ["--jetstream", "--store_dir=/data", "--http_port=8222"]
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    volumes:
+      - nats_data:/data
+    networks:
+      - url-shortener-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8222/varz"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # =============================================================================
+  # APPLICATION SERVICES
+  # =============================================================================
+
+  # Core URL Shortener Service (RPC)
+  url-shortener-svc:
+    build:
+      context: .
+      dockerfile: services/url-shortener-svc/Dockerfile
+    container_name: url-shortener-service
+    environment:
+      - DATABASE_URL=postgres://postgres:${POSTGRES_PASSWORD:-password}@postgres:5432/url_shortener?sslmode=disable
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-redispassword}@redis:6379/0
+      - NATS_URL=nats://nats:4222
+      - MICRO_TRANSPORT_ADDRESS=nats:4222
+      - MICRO_BROKER_ADDRESS=nats:4222
+      - MICRO_REGISTRY_ADDRESS=nats:4222
+      - GO_ENV=production
+      - ENVIRONMENT=production
+      - SERVICE_VERSION=1.0.0
+      - JAEGER_ENDPOINT=jaeger:4317
+      - LOG_LEVEL=info
+      - SERVICE_NAME=url-shortener-svc
+    ports:
+      - "50051:50051"
+    depends_on:
+      url-shortener-migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    networks:
+      - url-shortener-network
+    restart: unless-stopped
+
+  # Analytics Service
+  analytics-svc:
+    build:
+      context: .
+      dockerfile: services/analytics-svc/Dockerfile
+    container_name: analytics-service
+    environment:
+      - DATABASE_URL=postgres://postgres:${POSTGRES_PASSWORD:-password}@postgres:5432/url_shortener?sslmode=disable
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-redispassword}@redis:6379/1
+      - NATS_URL=nats://nats:4222
+      - MICRO_TRANSPORT_ADDRESS=nats:4222
+      - MICRO_BROKER_ADDRESS=nats:4222
+      - MICRO_REGISTRY_ADDRESS=nats:4222
+      - CLICKHOUSE_HOST=clickhouse:9000
+      - CLICKHOUSE_USER=default
+      - CLICKHOUSE_PASSWORD=
+      - CLICKHOUSE_DATABASE=analytics
+      - GO_ENV=production
+      - ENVIRONMENT=production
+      - SERVICE_VERSION=1.0.0
+      - JAEGER_ENDPOINT=jaeger:4317
+      - LOG_LEVEL=info
+      - SERVICE_NAME=analytics-svc
+    ports:
+      - "50052:50052"
+    depends_on:
+      analytics-clickhouse-migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+    networks:
+      - url-shortener-network
+    restart: unless-stopped
+
+  # Redirect Service
+  redirect-svc:
+    build:
+      context: .
+      dockerfile: services/redirect-svc/Dockerfile
+    container_name: redirect-service
+    environment:
+      - DATABASE_URL=postgres://postgres:${POSTGRES_PASSWORD:-password}@postgres:5432/url_shortener?sslmode=disable
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-redispassword}@redis:6379/3
+      - NATS_URL=nats://nats:4222
+      - MICRO_TRANSPORT_ADDRESS=nats:4222
+      - MICRO_BROKER_ADDRESS=nats:4222
+      - MICRO_REGISTRY_ADDRESS=nats:4222
+      - GO_ENV=production
+      - ENVIRONMENT=production
+      - SERVICE_VERSION=1.0.0
+      - JAEGER_ENDPOINT=jaeger:4317
+      - LOG_LEVEL=info
+      - SERVICE_NAME=redirect-svc
+    ports:
+      - "50053:50053"
+    depends_on:
+      - url-shortener-svc
+    networks:
+      - url-shortener-network
+    restart: unless-stopped
+
+  # REST API Service (HTTP Gateway)
+  rest-api-svc:
+    build:
+      context: .
+      dockerfile: services/rest-api-svc/Dockerfile
+    container_name: rest-api-service
+    environment:
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-redispassword}@redis:6379/2
+      - NATS_URL=nats://nats:4222
+      - MICRO_TRANSPORT_ADDRESS=nats:4222
+      - MICRO_BROKER_ADDRESS=nats:4222
+      - MICRO_REGISTRY_ADDRESS=nats:4222
+      - GO_ENV=production
+      - ENVIRONMENT=production
+      - SERVICE_VERSION=1.0.0
+      - JAEGER_ENDPOINT=jaeger:4317
+      - LOG_LEVEL=info
+      - PORT=8080
+      - SERVICE_NAME=rest-api-svc
+    ports:
+      - "8080:8080"
+    depends_on:
+      - url-shortener-svc
+      - analytics-svc
+      - redirect-svc
+    networks:
+      - url-shortener-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # =============================================================================
+  # MONITORING & OBSERVABILITY SERVICES
+  # =============================================================================
+
+  # Prometheus - Metrics Collection
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: url-shortener-prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    volumes:
+      - ./infrastructure/docker/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./infrastructure/monitoring/prometheus-rules.yml:/etc/prometheus/prometheus-rules.yml
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - url-shortener-network
+    restart: unless-stopped
+
+  # Grafana - Metrics Visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: url-shortener-grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./infrastructure/docker/grafana-datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml
+      - ./infrastructure/monitoring/grafana-dashboards/dashboard.yml:/etc/grafana/provisioning/dashboards/dashboard.yml
+      - ./infrastructure/monitoring/grafana-dashboards:/etc/grafana/provisioning/dashboards
+    ports:
+      - "3000:3000"
+    networks:
+      - url-shortener-network
+    restart: unless-stopped
+
+  # Jaeger - Distributed Tracing (All-in-One)
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: url-shortener-jaeger
+    environment:
+      COLLECTOR_ZIPKIN_HOST_PORT: ":9411"
+      COLLECTOR_OTLP_ENABLED: true
+    ports:
+      - "16686:16686"    # Jaeger UI
+      - "14268:14268"    # Jaeger collector HTTP
+      - "14250:14250"    # Jaeger collector gRPC
+      - "4317:4317"      # OTLP gRPC receiver
+      - "4318:4318"      # OTLP HTTP receiver
+      - "6831:6831/udp"  # Jaeger agent UDP
+      - "6832:6832/udp"  # Jaeger agent UDP
+      - "5778:5778"      # Agent configs
+    networks:
+      - url-shortener-network
+    restart: unless-stopped
+
+networks:
+  url-shortener-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  clickhouse_data:
+  prometheus_data:
+  grafana_data:
+  nats_data: 

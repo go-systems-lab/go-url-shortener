@@ -1,0 +1,75 @@
+# Go Microservices - URL Shortener .gitignore
+
+# Log files
+*.log
+
+# Go build artifacts
+bin/
+build/
+dist/
+
+# Go module cache
+go.sum.backup
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+*.pid
+
+# Environment files
+.env
+.env.local
+.env.production
+
+# Test coverage
+coverage.out
+*.coverage
+
+# Docker volumes and data
+docker-data/
+volumes/
+
+# Local development files
+*.local
+local-*
+
+# Database files (if any local testing)
+*.db
+*.sqlite
+
+# Certificates and keys (if any)
+*.pem
+*.key
+*.crt
+
+# Backup files
+*.backup
+*.bak
+
+# Node modules (if any frontend)
+node_modules/
+
+# Terraform state files (if any infrastructure)
+*.tfstate
+*.tfstate.*
+.terraform/
+
+# Kubernetes secrets
+secrets.yaml
+secret-*.yaml 

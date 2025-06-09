@@ -1,0 +1,97 @@
+syntax = "proto3";
+
+package redirect;
+
+option go_package = "github.com/go-systems-lab/go-url-shortener/proto/redirect";
+
+// Redirect service for URL resolution and click tracking
+service RedirectService {
+    // Resolve short code to original URL
+    rpc ResolveURL(ResolveRequest) returns (ResolveResponse);
+    
+    // Track click analytics (async)
+    rpc TrackClick(ClickRequest) returns (ClickResponse);
+    
+    // Health check
+    rpc Health(HealthRequest) returns (HealthResponse);
+}
+
+// Request to resolve a short URL
+message ResolveRequest {
+    string short_code = 1;           // Short code to resolve (e.g., "abc123")
+    string client_ip = 2;            // Client IP for analytics
+    string user_agent = 3;           // User agent string
+    string referrer = 4;             // HTTP referrer
+    string country = 5;              // Country code (optional)
+    string device_type = 6;          // mobile, desktop, tablet
+}
+
+// Response with resolved URL
+message ResolveResponse {
+    string long_url = 1;             // Original long URL
+    bool found = 2;                  // Whether URL was found
+    bool expired = 3;                // Whether URL has expired
+    int64 created_at = 4;           // When URL was created
+    int64 expires_at = 5;           // When URL expires (if any)
+    int64 click_count = 6;           // Total clicks (cached)
+    string error = 7;                // Error message if any
+}
+
+// Request to track a click event
+message ClickRequest {
+    string short_code = 1;           // Short code that was clicked
+    string long_url = 2;             // Resolved long URL
+    string client_ip = 3;            // Client IP address
+    string user_agent = 4;           // Full user agent string
+    string referrer = 5;             // HTTP referrer URL
+    string country = 6;              // Country code (GeoIP)
+    string city = 7;                 // City name (GeoIP)
+    string device_type = 8;          // mobile, desktop, tablet
+    string browser = 9;              // Chrome, Firefox, Safari, etc.
+    string os = 10;                  // Windows, macOS, Linux, iOS, Android
+    int64 timestamp = 11;           // Click timestamp
+}
+
+// Response for click tracking
+message ClickResponse {
+    bool success = 1;                // Whether tracking was successful
+    string error = 2;                // Error message if any
+}
+
+// Health check request
+message HealthRequest {}
+
+// Health check response
+message HealthResponse {
+    string status = 1;               // "ok" or "error"
+    string service = 2;              // Service name
+    string version = 3;              // Service version
+    int64 timestamp = 4;            // Current timestamp
+}
+
+// Click analytics event for NATS publishing
+message ClickEvent {
+    string short_code = 1;
+    string long_url = 2;
+    string client_ip = 3;
+    string user_agent = 4;
+    string referrer = 5;
+    string country = 6;
+    string city = 7;
+    string device_type = 8;
+    string browser = 9;
+    string os = 10;
+    int64 timestamp = 11;
+    string session_id = 12;          // User session ID
+    bool is_unique = 13;             // First time this IP clicked this URL
+}
+
+// Cache entry for URL mapping
+message URLCacheEntry {
+    string short_code = 1;
+    string long_url = 2;
+    int64 created_at = 3;
+    int64 expires_at = 4;
+    int64 click_count = 5;
+    bool is_active = 6;
+} 

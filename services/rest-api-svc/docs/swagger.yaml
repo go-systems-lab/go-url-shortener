@@ -1,0 +1,541 @@
+basePath: /api/v1
+definitions:
+  handler.BrowserStatsItem:
+    properties:
+      browser:
+        example: Chrome 120
+        type: string
+      clicks:
+        example: 80
+        type: integer
+      percentage:
+        example: 53.3
+        type: number
+    type: object
+  handler.CountryStatsItem:
+    properties:
+      clicks:
+        example: 75
+        type: integer
+      country:
+        example: US
+        type: string
+      percentage:
+        example: 50
+        type: number
+    type: object
+  handler.DeleteResponse:
+    properties:
+      message:
+        example: URL deleted successfully
+        type: string
+    type: object
+  handler.DeviceStatsItem:
+    properties:
+      clicks:
+        example: 90
+        type: integer
+      device_type:
+        example: Desktop
+        type: string
+      percentage:
+        example: 60
+        type: number
+    type: object
+  handler.ErrorResponse:
+    properties:
+      error:
+        example: Invalid request body
+        type: string
+    type: object
+  handler.RedirectResponse:
+    properties:
+      click_count:
+        example: 43
+        type: integer
+      long_url:
+        example: https://www.google.com
+        type: string
+      session_id:
+        example: sess_1234567890abcdef
+        type: string
+      short_code:
+        example: abc123
+        type: string
+      timestamp:
+        example: 1672531200
+        type: integer
+    type: object
+  handler.ReferrerStatsItem:
+    properties:
+      clicks:
+        example: 45
+        type: integer
+      percentage:
+        example: 30
+        type: number
+      referrer:
+        example: https://google.com
+        type: string
+    type: object
+  handler.ShortenURLRequest:
+    properties:
+      custom_alias:
+        example: google
+        type: string
+      expiration_time:
+        example: 1735689600
+        type: integer
+      long_url:
+        example: https://www.google.com
+        type: string
+      metadata:
+        additionalProperties:
+          type: string
+        example:
+          campaign: social
+          source: twitter
+        type: object
+      user_id:
+        example: user123
+        type: string
+    required:
+    - long_url
+    - user_id
+    type: object
+  handler.ShortenURLResponse:
+    properties:
+      created_at:
+        example: 1672531200
+        type: integer
+      expires_at:
+        example: 1735689600
+        type: integer
+      long_url:
+        example: https://www.google.com
+        type: string
+      short_code:
+        example: abc123
+        type: string
+      short_url:
+        example: https://short.ly/abc123
+        type: string
+      user_id:
+        example: user123
+        type: string
+    type: object
+  handler.TimeSeriesPoint:
+    properties:
+      clicks:
+        example: 25
+        type: integer
+      timestamp:
+        example: 1672531200
+        type: integer
+      unique_clicks:
+        example: 18
+        type: integer
+    type: object
+  handler.TopURLItem:
+    properties:
+      created_at:
+        example: 1672531200
+        type: integer
+      last_clicked:
+        example: 1672617600
+        type: integer
+      short_code:
+        example: abc123
+        type: string
+      total_clicks:
+        example: 150
+        type: integer
+      unique_clicks:
+        example: 95
+        type: integer
+    type: object
+  handler.TopURLsResponse:
+    properties:
+      urls:
+        items:
+          $ref: '#/definitions/handler.TopURLItem'
+        type: array
+    type: object
+  handler.URLInfoResponse:
+    properties:
+      click_count:
+        example: 42
+        type: integer
+      created_at:
+        example: 1672531200
+        type: integer
+      expires_at:
+        example: 1735689600
+        type: integer
+      is_active:
+        example: true
+        type: boolean
+      long_url:
+        example: https://www.google.com
+        type: string
+      metadata:
+        additionalProperties:
+          type: string
+        example:
+          campaign: social
+          source: twitter
+        type: object
+      short_code:
+        example: abc123
+        type: string
+      short_url:
+        example: https://short.ly/abc123
+        type: string
+      user_id:
+        example: user123
+        type: string
+    type: object
+  handler.URLStatsResponse:
+    properties:
+      browser_stats:
+        items:
+          $ref: '#/definitions/handler.BrowserStatsItem'
+        type: array
+      country_stats:
+        items:
+          $ref: '#/definitions/handler.CountryStatsItem'
+        type: array
+      device_stats:
+        items:
+          $ref: '#/definitions/handler.DeviceStatsItem'
+        type: array
+      referrer_stats:
+        items:
+          $ref: '#/definitions/handler.ReferrerStatsItem'
+        type: array
+      short_code:
+        example: abc123
+        type: string
+      time_series:
+        items:
+          $ref: '#/definitions/handler.TimeSeriesPoint'
+        type: array
+      total_clicks:
+        example: 150
+        type: integer
+      unique_clicks:
+        example: 95
+        type: integer
+    type: object
+  handler.UserURLsResponse:
+    properties:
+      has_next:
+        example: true
+        type: boolean
+      page:
+        example: 1
+        type: integer
+      page_size:
+        example: 20
+        type: integer
+      total_count:
+        example: 100
+        type: integer
+      urls:
+        items:
+          $ref: '#/definitions/handler.URLInfoResponse'
+        type: array
+    type: object
+host: localhost:8082
+info:
+  contact:
+    email: support@urlshortener.com
+    name: URL Shortener API Support
+  description: |-
+    A production-ready URL shortener microservice built with Go Micro v5, NATS, PostgreSQL, and Redis.
+    This REST API provides HTTP endpoints for end users to interact with the URL shortening service.
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  title: URL Shortener REST API
+  version: "1.0"
+paths:
+  /{shortCode}:
+    get:
+      consumes:
+      - application/json
+      description: Resolve a short code and redirect to the original URL with click
+        tracking
+      parameters:
+      - description: Short code identifier
+        example: abc123
+        in: path
+        name: shortCode
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Redirect information (for API testing)
+          schema:
+            $ref: '#/definitions/handler.RedirectResponse'
+        "302":
+          description: Redirect to original URL
+        "404":
+          description: Short code not found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "410":
+          description: URL has expired
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: Redirect to original URL
+      tags:
+      - Redirect
+  /analytics/top-urls:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve the top performing URLs based on clicks
+      parameters:
+      - description: Number of URLs to return
+        example: 10
+        in: query
+        name: limit
+        type: integer
+      - description: Start time (Unix timestamp)
+        example: 1672531200
+        in: query
+        name: start_time
+        type: integer
+      - description: End time (Unix timestamp)
+        example: 1672617600
+        in: query
+        name: end_time
+        type: integer
+      - description: Sort by (clicks/unique_clicks/created_at)
+        example: clicks
+        in: query
+        name: sort_by
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Top URLs retrieved successfully
+          schema:
+            $ref: '#/definitions/handler.TopURLsResponse'
+        "400":
+          description: Invalid parameters
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: Get top performing URLs
+      tags:
+      - Analytics
+  /analytics/urls/{shortCode}:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve comprehensive analytics for a specific short URL
+      parameters:
+      - description: Short code identifier
+        example: abc123
+        in: path
+        name: shortCode
+        required: true
+        type: string
+      - description: Start time (Unix timestamp)
+        example: 1672531200
+        in: query
+        name: start_time
+        type: integer
+      - description: End time (Unix timestamp)
+        example: 1672617600
+        in: query
+        name: end_time
+        type: integer
+      - description: Time granularity (hour/day/week/month)
+        example: day
+        in: query
+        name: granularity
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: URL analytics retrieved successfully
+          schema:
+            $ref: '#/definitions/handler.URLStatsResponse'
+        "400":
+          description: Invalid parameters
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: URL not found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: Get URL analytics
+      tags:
+      - Analytics
+  /shorten:
+    post:
+      consumes:
+      - application/json
+      description: Create a short URL from a long URL with optional custom alias and
+        expiration
+      parameters:
+      - description: URL shortening request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.ShortenURLRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Successfully created short URL
+          schema:
+            $ref: '#/definitions/handler.ShortenURLResponse'
+        "400":
+          description: Invalid request body
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: Create a short URL
+      tags:
+      - URL Management
+  /urls/{shortCode}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a short URL belonging to the authenticated user
+      parameters:
+      - description: Short code identifier
+        example: abc123
+        in: path
+        name: shortCode
+        required: true
+        type: string
+      - description: User ID
+        example: user123
+        in: query
+        name: user_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: URL deleted successfully
+          schema:
+            $ref: '#/definitions/handler.DeleteResponse'
+        "400":
+          description: Missing user_id parameter
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Failed to delete URL
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: Delete a short URL
+      tags:
+      - URL Management
+    get:
+      consumes:
+      - application/json
+      description: Retrieve detailed information about a short URL
+      parameters:
+      - description: Short code identifier
+        example: abc123
+        in: path
+        name: shortCode
+        required: true
+        type: string
+      - description: User ID
+        example: user123
+        in: query
+        name: user_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: URL information retrieved successfully
+          schema:
+            $ref: '#/definitions/handler.URLInfoResponse'
+        "400":
+          description: Missing user_id parameter
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: URL not found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: Get URL information
+      tags:
+      - URL Management
+  /users/{userID}/urls:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a paginated list of URLs belonging to a specific user
+      parameters:
+      - description: User ID
+        example: user123
+        in: path
+        name: userID
+        required: true
+        type: string
+      - description: Page number
+        example: 1
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        example: 20
+        in: query
+        name: page_size
+        type: integer
+      - description: Sort field
+        example: created_at
+        in: query
+        name: sort_by
+        type: string
+      - description: Sort order
+        example: desc
+        in: query
+        name: sort_order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User URLs retrieved successfully
+          schema:
+            $ref: '#/definitions/handler.UserURLsResponse'
+        "500":
+          description: Failed to get user URLs
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: Get user's URLs
+      tags:
+      - User Management
+swagger: "2.0"

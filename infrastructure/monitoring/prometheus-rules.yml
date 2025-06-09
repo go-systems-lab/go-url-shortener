@@ -1,0 +1,212 @@
+groups:
+  - name: url_shortener_alerts
+    rules:
+      # High-level service availability alerts
+      - alert: ServiceDown
+        expr: up{job=~"url-shortener-services"} == 0
+        for: 30s
+        labels:
+          severity: critical
+          service: "{{ $labels.instance }}"
+        annotations:
+          summary: "URL Shortener service is down"
+          description: "Service {{ $labels.instance }} has been down for more than 30 seconds."
+
+      # API Response Time SLA Alerts (HLD target: <100ms redirect, <200ms shortening)
+      - alert: HighAPILatency
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 0.2
+        for: 2m
+        labels:
+          severity: warning
+          service: "api"
+        annotations:
+          summary: "High API latency detected"
+          description: "95th percentile latency is {{ $value }}s, exceeding 200ms SLA"
+
+      - alert: VeryHighAPILatency  
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 0.5
+        for: 1m
+        labels:
+          severity: critical
+          service: "api"
+        annotations:
+          summary: "Very high API latency detected"
+          description: "95th percentile latency is {{ $value }}s, severely exceeding SLA"
+
+      # Redirect Latency SLA (HLD target: <100ms)
+      - alert: HighRedirectLatency
+        expr: histogram_quantile(0.95, rate(redirect_request_duration_seconds_bucket[5m])) > 0.1
+        for: 2m
+        labels:
+          severity: warning
+          service: "redirect"
+        annotations:
+          summary: "High redirect latency"
+          description: "Redirect 95th percentile latency is {{ $value }}s, exceeding 100ms SLA"
+
+      # Error Rate Alerts
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) > 0.05
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value | humanizePercentage }} for service {{ $labels.service }}"
+
+      - alert: VeryHighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) > 0.1
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Very high error rate detected"
+          description: "Error rate is {{ $value | humanizePercentage }} for service {{ $labels.service }}"
+
+      # Cache Performance Alerts (HLD target: 95% hit ratio)
+      - alert: LowCacheHitRatio
+        expr: redis_cache_hit_ratio < 0.9
+        for: 5m
+        labels:
+          severity: warning
+          service: "redis"
+        annotations:
+          summary: "Low Redis cache hit ratio"
+          description: "Cache hit ratio is {{ $value | humanizePercentage }}, below 90% threshold"
+
+      - alert: VeryLowCacheHitRatio
+        expr: redis_cache_hit_ratio < 0.8
+        for: 2m
+        labels:
+          severity: critical
+          service: "redis"
+        annotations:
+          summary: "Very low Redis cache hit ratio"
+          description: "Cache hit ratio is {{ $value | humanizePercentage }}, critically low"
+
+      # Database Connection Alerts
+      - alert: DatabaseConnectionPoolExhaustion
+        expr: postgres_active_connections / postgres_max_connections > 0.9
+        for: 1m
+        labels:
+          severity: critical
+          service: "postgresql"
+        annotations:
+          summary: "PostgreSQL connection pool near exhaustion"
+          description: "Active connections: {{ $value | humanizePercentage }} of maximum"
+
+      # NATS Messaging Alerts
+      - alert: NATSSlowConsumer
+        expr: nats_slow_consumers > 0
+        for: 30s
+        labels:
+          severity: warning
+          service: "nats"
+        annotations:
+          summary: "NATS slow consumer detected"
+          description: "{{ $value }} slow consumers detected in NATS"
+
+      # Resource Utilization Alerts
+      - alert: HighCPUUsage
+        expr: rate(container_cpu_usage_seconds_total[5m]) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage"
+          description: "CPU usage is {{ $value }}% for container {{ $labels.name }}"
+
+      - alert: HighMemoryUsage
+        expr: container_memory_usage_bytes / container_spec_memory_limit_bytes * 100 > 90
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage is {{ $value }}% for container {{ $labels.name }}"
+
+      # Business Logic Alerts
+      - alert: UnusuallyHighURLCreationRate
+        expr: rate(urls_created_total[5m]) > 1000
+        for: 2m
+        labels:
+          severity: info
+          service: "url-shortener"
+        annotations:
+          summary: "Unusually high URL creation rate"
+          description: "URL creation rate is {{ $value }} URLs/second"
+
+      - alert: UnusuallyHighRedirectionRate
+        expr: rate(redirections_total[5m]) > 10000
+        for: 2m
+        labels:
+          severity: info
+          service: "redirect"
+        annotations:
+          summary: "Unusually high redirection rate"
+          description: "Redirection rate is {{ $value }} redirections/second"
+
+  - name: infrastructure_alerts
+    rules:
+      # PostgreSQL Alerts
+      - alert: PostgreSQLDown
+        expr: pg_up == 0
+        for: 30s
+        labels:
+          severity: critical
+          service: "postgresql"
+        annotations:
+          summary: "PostgreSQL is down"
+          description: "PostgreSQL database is not responding"
+
+      - alert: PostgreSQLHighConnections
+        expr: pg_stat_activity_count > 80
+        for: 2m
+        labels:
+          severity: warning
+          service: "postgresql"
+        annotations:
+          summary: "High number of PostgreSQL connections"
+          description: "Number of connections: {{ $value }}"
+
+      # Redis Alerts
+      - alert: RedisDown
+        expr: redis_up == 0
+        for: 30s
+        labels:
+          severity: critical
+          service: "redis"
+        annotations:
+          summary: "Redis is down"
+          description: "Redis cache is not responding"
+
+      - alert: RedisHighMemoryUsage
+        expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          service: "redis"
+        annotations:
+          summary: "Redis high memory usage"
+          description: "Redis memory usage is {{ $value | humanizePercentage }}"
+
+      # NATS Alerts
+      - alert: NATSDown
+        expr: nats_up == 0
+        for: 30s
+        labels:
+          severity: critical
+          service: "nats"
+        annotations:
+          summary: "NATS is down"
+          description: "NATS messaging server is not responding"
+
+      - alert: NATSHighMessagePending
+        expr: nats_total_msgs_pending > 10000
+        for: 5m
+        labels:
+          severity: warning
+          service: "nats"
+        annotations:
+          summary: "High NATS message pending count"
+          description: "Pending messages: {{ $value }}" 

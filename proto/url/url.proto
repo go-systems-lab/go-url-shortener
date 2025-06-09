@@ -1,0 +1,98 @@
+syntax = "proto3";
+
+package url;
+
+option go_package = "github.com/go-systems-lab/go-url-shortener/proto/url";
+
+// URL Shortener Service - Exact implementation of HLD design
+service URLShortener {
+  rpc ShortenURL(ShortenRequest) returns (ShortenResponse);
+  rpc GetURLInfo(GetURLRequest) returns (URLInfo);
+  rpc DeleteURL(DeleteURLRequest) returns (DeleteResponse);
+  rpc GetUserURLs(GetUserURLsRequest) returns (GetUserURLsResponse);
+  rpc UpdateURL(UpdateURLRequest) returns (UpdateURLResponse);
+}
+
+// Shorten URL Request
+message ShortenRequest {
+  string long_url = 1;
+  string custom_alias = 2;  // optional custom short code
+  int64 expiration_time = 3; // unix timestamp, 0 for no expiration
+  string user_id = 4;
+  map<string, string> metadata = 5; // additional metadata
+}
+
+// Shorten URL Response
+message ShortenResponse {
+  string short_code = 1;
+  string short_url = 2;
+  string long_url = 3;
+  int64 created_at = 4;
+  int64 expires_at = 5;
+  string user_id = 6;
+}
+
+// Get URL Information Request
+message GetURLRequest {
+  string short_code = 1;
+  string user_id = 2; // for authorization
+}
+
+// URL Information
+message URLInfo {
+  string short_code = 1;
+  string short_url = 2;
+  string long_url = 3;
+  string user_id = 4;
+  int64 created_at = 5;
+  int64 expires_at = 6;
+  int64 click_count = 7;
+  bool is_active = 8;
+  map<string, string> metadata = 9;
+}
+
+// Delete URL Request
+message DeleteURLRequest {
+  string short_code = 1;
+  string user_id = 2; // for authorization
+}
+
+// Delete URL Response
+message DeleteResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// Get User URLs Request (pagination)
+message GetUserURLsRequest {
+  string user_id = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+  string sort_by = 4; // created_at, click_count, etc.
+  string sort_order = 5; // asc, desc
+}
+
+// Get User URLs Response
+message GetUserURLsResponse {
+  repeated URLInfo urls = 1;
+  int32 total_count = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+  bool has_next = 5;
+}
+
+// Update URL Request
+message UpdateURLRequest {
+  string short_code = 1;
+  string user_id = 2;
+  string new_long_url = 3; // optional
+  int64 new_expiration_time = 4; // optional
+  map<string, string> metadata = 5; // optional
+}
+
+// Update URL Response
+message UpdateURLResponse {
+  bool success = 1;
+  string message = 2;
+  URLInfo updated_url = 3;
+} 
