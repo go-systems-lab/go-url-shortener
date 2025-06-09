@@ -48,7 +48,10 @@ A **production-ready URL shortener** built with **Go Micro v5 microservices arch
 
 ## 🏗️ System Architecture
 
-> **Note**: Architecture diagram will be added here
+<div align="center">
+  <img src="images/architecture.png" alt="URL Shortener Microservices Architecture" width="900"/>
+  <p><em>🏗️ Complete microservices architecture with Go Micro, NATS, and comprehensive observability stack</em></p>
+</div>
 
 ### 🔄 **Service Communication Flow**
 
